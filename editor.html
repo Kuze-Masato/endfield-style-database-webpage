@@ -1,0 +1,770 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>XX百科图鉴 - 管理控制台</title>
+    <style>
+        :root {
+            --primary: #2c3e50;
+            --accent: #ff6600;
+            --bg: #f8f9fa;
+            --sidebar-w: 320px;
+            --border: #e9ecef;
+            --text-main: #343a40;
+            --text-muted: #6c757d;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+        body { background: var(--bg); height: 100vh; display: flex; overflow: hidden; color: var(--text-main); }
+
+        /* 左侧侧边栏 */
+        .sidebar { width: var(--sidebar-w); background: white; border-right: 1px solid var(--border); display: flex; flex-direction: column; box-shadow: 2px 0 10px rgba(0,0,0,0.02); }
+        .sidebar-header { padding: 20px; border-bottom: 1px solid var(--border); }
+        .sidebar-header h2 { font-size: 16px; margin-bottom: 15px; display: flex; align-items: center; gap: 8px; color: var(--primary); }
+        
+        /* 页签切换 */
+        .tab-menu { display: flex; background: #f1f3f5; padding: 4px; border-radius: 8px; margin-bottom: 15px; }
+        .tab-btn { flex: 1; padding: 8px; border: none; background: none; font-size: 12px; font-weight: bold; color: var(--text-muted); cursor: pointer; border-radius: 6px; transition: 0.2s; }
+        .tab-btn.active { background: white; color: var(--primary); box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+
+        .search-wrapper { position: relative; }
+        .search-box { width: 100%; padding: 10px 12px 10px 35px; border: 1.5px solid var(--border); border-radius: 8px; outline: none; transition: 0.2s; font-size: 13px; }
+        .search-box:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(44,62,80,0.05); }
+        .search-icon { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); opacity: 0.3; font-size: 14px; }
+
+        .item-list { flex: 1; overflow-y: auto; padding: 10px; }
+        .list-card { 
+            padding: 10px 12px; border-radius: 8px; margin-bottom: 4px; cursor: pointer; transition: 0.2s; 
+            display: flex; align-items: center; gap: 10px; border: 1px solid transparent;
+        }
+        .list-card:hover { background: #f1f3f5; }
+        .list-card.active { background: #e9ecef; border-color: var(--primary); }
+        .list-card .icon-circle { width: 36px; height: 36px; background: #f8f9fa; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 18px; border: 1px solid var(--border); }
+        .list-card img { width: 36px; height: 36px; object-fit: contain; background: #f8f9fa; border-radius: 6px; padding: 3px; border: 1px solid var(--border); }
+        .list-info { flex: 1; overflow: hidden; }
+        .list-info .name { font-size: 13px; font-weight: bold; white-space: nowrap; text-overflow: ellipsis; overflow: hidden; margin-bottom: 2px; }
+        .list-info .sub { font-size: 10px; color: var(--text-muted); font-family: monospace; letter-spacing: 0.5px; }
+
+        /* 主编辑区 */
+        .main-editor { flex: 1; display: flex; flex-direction: column; background: #fff; margin: 20px; border-radius: 12px; box-shadow: 0 5px 25px rgba(0,0,0,0.04); overflow: hidden; border: 1px solid var(--border); }
+        .editor-header { padding: 15px 25px; background: #fff; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+        .editor-header h3 { font-size: 15px; color: var(--primary); font-weight: 700; }
+        .header-btns { display: flex; gap: 8px; align-items: center; }
+        .connection-status { font-size: 11px; padding: 4px 10px; border-radius: 20px; background: #eee; color: #999; display: flex; align-items: center; gap: 5px; }
+        .connection-status.connected { background: #e6fffa; color: #059669; border: 1px solid #b2f5ea; }
+        .connection-status.connected::before { content: '●'; }
+        .connection-status.disconnected::before { content: '○'; }
+
+        .btn { padding: 8px 16px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; border: none; transition: 0.2s; display: flex; align-items: center; gap: 6px; }
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-primary:hover { opacity: 0.9; transform: translateY(-1px); }
+        .btn-accent { background: var(--accent); color: white; }
+        .btn-accent:hover { opacity: 0.9; transform: translateY(-1px); }
+        .btn-outline { background: #fff; border: 1px solid var(--border); color: var(--text-muted); }
+        .btn-outline:hover { background: #f8f9fa; border-color: var(--text-muted); color: var(--text-main); }
+        .btn-danger { background: #fff; border: 1px solid #ffcfcf; color: #ff4d4f; }
+        .btn-danger:hover { background: #fff1f0; border-color: #ff4d4f; }
+
+        /* 空状态 */
+        .empty-state { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; color: var(--text-muted); text-align: center; gap: 15px; }
+        .empty-state-icon { font-size: 64px; opacity: 0.2; }
+        .empty-state p { font-size: 14px; }
+
+        .editor-body { flex: 1; overflow-y: auto; padding: 25px; display: none; }
+        .editor-body.active { display: block; }
+        .editor-content-grid { display: grid; grid-template-columns: 1fr 380px; gap: 30px; }
+        .editor-body.single-col .editor-content-grid { display: block; max-width: 700px; margin: 0 auto; }
+        
+        /* 表单样式 */
+        .section-title { font-size: 12px; font-weight: 800; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1.5px; margin: 30px 0 15px; display: flex; align-items: center; gap: 10px; }
+        .section-title:first-child { margin-top: 0; }
+        .section-title::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+        .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+        .form-group { display: flex; flex-direction: column; gap: 5px; }
+        .form-group label { font-size: 11px; font-weight: 700; color: var(--text-muted); margin-left: 2px; }
+        .form-group input, .form-group select, .form-group textarea { padding: 10px 12px; border: 1.5px solid var(--border); border-radius: 8px; outline: none; font-size: 13px; transition: 0.2s; background: #fdfdfd; }
+        .form-group input:focus, .form-group select:focus { border-color: var(--primary); background: #fff; }
+        .form-group textarea { height: 90px; resize: none; line-height: 1.6; }
+
+        /* 九宫格编辑器 */
+        .crafting-container { background: #f8f9fa; padding: 25px; border-radius: 12px; border: 1px solid var(--border); display: flex; flex-direction: column; align-items: center; gap: 15px; }
+        .crafting-grid { 
+            display: grid; grid-template-columns: repeat(3, 64px); grid-template-rows: repeat(3, 64px); gap: 4px; 
+            background: #8b8b8b; padding: 4px; border: 2px solid #373737;
+        }
+        .grid-slot { 
+            width: 64px; height: 64px; background: #8b8b8b; border: 2px solid; 
+            border-color: #373737 #fff #fff #373737; display: flex; align-items: center; justify-content: center; 
+            cursor: pointer; position: relative;
+        }
+        .grid-slot.active { outline: 3px solid var(--accent); z-index: 2; box-shadow: 0 0 15px rgba(255,102,0,0.2); }
+        .grid-slot img { width: 44px; height: 44px; pointer-events: none; }
+        .grid-slot span { position: absolute; font-size: 9px; color: white; bottom: 2px; right: 2px; text-shadow: 1px 1px 2px #000; padding: 0 2px; background: rgba(0,0,0,0.4); border-radius: 2px; }
+
+        /* 分类编辑器特有 */
+        .category-item-row { display: grid; grid-template-columns: 1fr 1fr 1fr 40px; gap: 8px; margin-bottom: 8px; background: #f8f9fa; padding: 8px; border-radius: 8px; border: 1px solid var(--border); align-items: center; }
+        .category-item-row input { padding: 6px 10px; font-size: 12px; }
+
+        /* 代码预览/导出层 */
+        .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); backdrop-filter: blur(4px); display: none; align-items: center; justify-content: center; z-index: 1000; }
+        .modal-content { width: 800px; height: 600px; background: #1e1e1e; border-radius: 16px; display: flex; flex-direction: column; padding: 25px; position: relative; box-shadow: 0 20px 50px rgba(0,0,0,0.3); }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; color: white; padding-right: 40px; }
+        .modal-header h2 { font-size: 18px; }
+        .code-view { flex: 1; background: #000; color: #a9dc76; padding: 20px; font-family: 'Fira Code', 'Consolas', monospace; overflow: auto; border-radius: 8px; font-size: 12px; line-height: 1.6; border: 1px solid #333; }
+        .close-modal { position: absolute; top: 18px; right: 20px; color: #fff; cursor: pointer; font-size: 28px; opacity: 0.5; transition: 0.2s; line-height: 1; }
+        .close-modal:hover { opacity: 1; }
+        /* 多配方编辑器样式 */
+        .recipe-path-item { background: #f8f9fa; border: 1px solid var(--border); border-radius: 8px; padding: 20px; margin-bottom: 20px; position: relative; display: grid; grid-template-columns: 1fr 240px; gap: 20px; }
+        .recipe-path-item .remove-path { position: absolute; top: 10px; right: 10px; color: #ff4d4f; cursor: pointer; font-weight: bold; font-size: 18px; z-index: 10; }
+        .recipe-path-item .path-title { font-size: 13px; font-weight: bold; color: var(--primary); margin-bottom: 15px; display: flex; align-items: center; gap: 8px; grid-column: span 2; }
+        .recipe-path-item .path-title::after { content: ''; flex: 1; height: 1px; background: #eee; }
+        
+        /* 路径内嵌九宫格 */
+        .path-grid-container { display: flex; flex-direction: column; align-items: center; gap: 10px; background: #eee; padding: 10px; border-radius: 8px; }
+        .path-grid { display: grid; grid-template-columns: repeat(3, 50px); grid-template-rows: repeat(3, 50px); gap: 2px; background: #8b8b8b; padding: 2px; border: 2px solid #373737; }
+        .path-slot { width: 50px; height: 50px; background: #8b8b8b; border: 2px solid; border-color: #373737 #fff #fff #373737; display: flex; align-items: center; justify-content: center; cursor: pointer; position: relative; }
+        .path-slot.active { outline: 2px solid var(--accent); z-index: 5; }
+        .path-slot img { width: 32px; height: 32px; pointer-events: none; }
+        .path-slot span { position: absolute; font-size: 8px; color: white; bottom: 1px; right: 1px; background: rgba(0,0,0,0.5); padding: 0 2px; border-radius: 2px; pointer-events: none; }
+    </style>
+</head>
+<body>
+
+    <div class="sidebar">
+        <div class="sidebar-header">
+            <h2>⚙️ 百科管理后台</h2>
+            <div class="tab-menu">
+                <button class="tab-btn active" id="tab-btn-items" onclick="switchTab('items')">物品</button>
+                <button class="tab-btn" id="tab-btn-atlases" onclick="switchTab('atlases')">大类</button>
+                <button class="tab-btn" id="tab-btn-categories" onclick="switchTab('categories')">小类</button>
+            </div>
+            <div class="search-wrapper">
+                <span class="search-icon">🔍</span>
+                <input type="text" class="search-box" id="sidebar-search" placeholder="在列表中搜索...">
+            </div>
+        </div>
+        <div class="item-list" id="sidebar-list">
+            <!-- 列表将动态渲染 -->
+        </div>
+        <div style="padding: 15px; border-top: 1px solid var(--border); background: #fff;">
+            <button class="btn btn-primary" style="width: 100%; justify-content: center; height: 40px;" id="add-new-btn">➕ 添加新项</button>
+        </div>
+    </div>
+
+    <div class="main-editor">
+        <div class="editor-header">
+            <h3 id="current-edit-title">管理工作区</h3>
+            <div class="header-btns">
+                <div id="file-status" class="connection-status disconnected">未连接 data.js</div>
+                <button class="btn btn-outline" style="border-color: #059669; color: #059669;" onclick="connectToFile()">🔗 授权直连 JS</button>
+                <button class="btn btn-outline" onclick="window.open('index.html')">🌐 预览主页</button>
+                <button class="btn btn-accent" onclick="showExportModal()">💾 导出 / 备份</button>
+            </div>
+        </div>
+
+        <!-- 空状态展示 -->
+        <div id="editor-empty" class="empty-state">
+            <div class="empty-state-icon">📄</div>
+            <h3>欢迎使用百科图鉴编辑器</h3>
+            <p>请从左侧列表中选择一个项目开始编辑，或点击下方的“添加新项”按钮。</p>
+        </div>
+
+        <!-- 物品编辑器 -->
+        <div class="editor-body" id="body-items">
+            <div class="editor-content-grid">
+                <div class="editor-form">
+                    <div class="section-title">基础配置</div>
+                    <div class="form-grid">
+                        <div class="form-group"><label>物品 ID (唯一标识)</label><input type="text" id="ed-id"></div>
+                        <div class="form-group"><label>显示名称 (Wiki 展示名)</label><input type="text" id="ed-name"></div>
+                        <div class="form-group"><label>技术 ID (Internal ID)</label><input type="text" id="ed-technicalId"></div>
+                        <div class="form-group"><label>稀有度</label><select id="ed-rarity"><option value="green">绿色 (普通)</option><option value="blue">蓝色 (稀有)</option><option value="orange">橙色 (传说)</option></select></div>
+                    </div>
+                    <div class="section-title">分类归属</div>
+                    <div class="form-grid">
+                        <div class="form-group"><label>所属大类 ID (Atlases ID)</label><input type="text" id="ed-category"></div>
+                        <div class="form-group"><label>所属小类 ID (Categories ID)</label><input type="text" id="ed-type"></div>
+                        <div class="form-group"><label>主标签 (如: 武器)</label><input type="text" id="ed-mainTag"></div>
+                        <div class="form-group"><label>副标签 (如: 魔法)</label><input type="text" id="ed-subTag"></div>
+                    </div>
+                    <div class="section-title">详细属性</div>
+                    <div class="form-grid">
+                        <div class="form-group"><label>材质 (Material)</label><input type="text" id="ed-material"></div>
+                        <div class="form-group"><label>产出数量</label><input type="number" id="ed-quantity"></div>
+                        <div class="form-group"><label>所属附属</label><input type="text" id="ed-addon"></div>
+                        <div class="form-group"><label>物品组</label><input type="text" id="ed-itemGroup"></div>
+                    </div>
+                    <div class="form-group" style="margin-top:20px;"><label>图标/大图链接 (URL 或相对路径)</label><input type="text" id="ed-image"></div>
+                    <div class="form-group" style="margin-top:20px;"><label>物品详细描述</label><textarea id="ed-description"></textarea></div>
+                    
+                    <div class="section-title">🏭 制造与产出路径 </div>
+                    <div id="manufacturing-paths-container">
+                        <!-- 动态渲染路径列表 -->
+                    </div>
+                    <div style="display: flex; gap: 10px; margin-top: 10px;">
+                        <button class="btn btn-outline" style="flex: 1; border-color: var(--primary); color: var(--primary);" onclick="addManufacturingPath()">➕ 添加新路径 (自带九宫格)</button>
+                    </div>
+                </div>
+                <div class="editor-preview">
+                    <button class="btn btn-primary" style="width: 100%; height: 60px; justify-content: center; font-size: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.1);" onclick="saveItem()">💾 保存所有物品修改</button>
+                    <button class="btn btn-danger" style="width: 100%; margin-top: 15px; justify-content: center;" onclick="deleteItem()">🗑️ 删除该物品</button>
+                    
+                    <div style="margin-top: 30px; padding: 20px; background: #fff8f0; border: 1px solid #ffe8cc; border-radius: 12px; font-size: 12px; color: #8a5a22; line-height: 1.6;">
+                        <b>💡 操作提示:</b><br>
+                        1. 点击路径内的格子来编辑九宫格内容。<br>
+                        2. 填写机器名称和机器图标。<br>
+                        3. 即使不需要九宫格(如烧矿,开采)，也可以在原材料清单中直接填写。
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 大类编辑器 -->
+        <div class="editor-body single-col" id="body-atlases">
+            <div class="editor-content-grid">
+                <div class="editor-form">
+                    <div class="section-title">大类配置 (Atlases)</div>
+                    <div class="form-grid">
+                        <div class="form-group"><label>大类唯一 ID</label><input type="text" id="at-id"></div>
+                        <div class="form-group"><label>大类显示名称</label><input type="text" id="at-name"></div>
+                        <div class="form-group" style="grid-column: span 2;"><label>图标 (支持 Emoji 或 图片链接)</label><input type="text" id="at-icon"></div>
+                    </div>
+                    <button class="btn btn-primary" style="margin-top: 30px; width: 100%; justify-content: center; height: 45px;" onclick="saveAtlas()">💾 保存大类配置</button>
+                    <button class="btn btn-danger" style="width: 100%; margin-top: 10px; justify-content: center;" onclick="deleteAtlas()">🗑️ 删除该大类</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 小类编辑器 -->
+        <div class="editor-body single-col" id="body-categories">
+            <div class="editor-content-grid">
+                <div class="editor-form">
+                    <div class="section-title">所属大类配置</div>
+                    <div class="form-group">
+                        <label>所属的大类 ID (必须与 Atlases 中的 ID 对应)</label>
+                        <input type="text" id="cat-parent-id" placeholder="例如: weapon">
+                    </div>
+                    <div class="section-title">小类列表管理 (Categories)</div>
+                    <div id="category-items-container">
+                        <!-- 动态渲染 -->
+                    </div>
+                    <div style="display: flex; gap: 10px; margin-top: 20px;">
+                        <button class="btn btn-outline" style="flex: 1; justify-content: center;" onclick="addCategoryRow()">➕ 添加一行小类</button>
+                        <button class="btn btn-primary" style="flex: 2; justify-content: center; height: 45px;" onclick="saveCategories()">💾 保存所有小类修改</button>
+                    </div>
+                    <button class="btn btn-danger" style="width: 100%; margin-top: 10px; justify-content: center;" onclick="deleteCategoryGroup()">🗑️ 清空此大类下的所有小类</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="export-modal">
+        <div class="modal-content">
+            <span class="close-modal" onclick="closeExportModal()">×</span>
+            <div class="modal-header">
+                <h2>导出完整的 data.js 内容</h2>
+                <div style="display: flex; gap: 10px;">
+                    <button class="btn btn-primary" onclick="downloadData()">📥 下载 data.js 文件</button>
+                    <button class="btn btn-accent" onclick="copyFullCode()">复制全部代码</button>
+                </div>
+            </div>
+            <div class="code-view" id="full-code-view"></div>
+        </div>
+    </div>
+
+    <script src="data.js"></script>
+    <script>
+        let currentTab = 'items';
+        let currentEditId = null;
+        let currentRecipe = Array(9).fill(null);
+        let currentSlot = null;
+        let manufacturingPaths = []; // 用于存储多条制造路径
+        let fileHandle = null; // 用于存储文件访问句柄
+
+        async function connectToFile() {
+            try {
+                // 请求用户选择文件
+                const [handle] = await window.showOpenFilePicker({
+                    types: [{
+                        description: 'JavaScript 文件',
+                        accept: { 'text/javascript': ['.js'] },
+                    }],
+                    multiple: false
+                });
+                
+                // 验证是否选对了 data.js
+                if (handle.name !== 'data.js') {
+                    alert('请选择项目中的 data.js 文件！');
+                    return;
+                }
+                
+                fileHandle = handle;
+                document.getElementById('file-status').innerText = '已直连 data.js';
+                document.getElementById('file-status').classList.remove('disconnected');
+                document.getElementById('file-status').classList.add('connected');
+                alert('连接成功！现在点击“保存”将直接修改本地文件。');
+            } catch (err) {
+                console.error(err);
+                if (err.name !== 'AbortError') alert('直连失败，您的浏览器可能不支持该功能或权限不足。');
+            }
+        }
+
+        async function writeToDisk() {
+            if (!fileHandle) return; // 如果没有直连，跳过直接写入
+            
+            try {
+                const writable = await fileHandle.createWritable();
+                const code = `// 粘液科技百科 数据文件\n// 最后更新: ${new Date().toLocaleString()}\n\nconst wikiData = ${JSON.stringify(wikiData, null, 4)};`;
+                await writable.write(code);
+                await writable.close();
+                console.log('文件已成功写入磁盘');
+            } catch (err) {
+                console.error('写入磁盘失败:', err);
+                alert('无法写入文件，请重新授权。');
+            }
+        }
+
+        // --- 多路径编辑器 ---
+        function addManufacturingPath(data = null) {
+            const container = document.getElementById('manufacturing-paths-container');
+            const pathId = 'path_' + Date.now() + Math.random().toString(36).substr(2, 5);
+            const div = document.createElement('div');
+            div.className = 'recipe-path-item';
+            div.dataset.id = pathId;
+            
+            const machine = data ? data.machine : '';
+            const machineIcon = data ? (data.machineIcon || '') : '';
+            const recipeType = data ? (data.recipeType || '') : '';
+            const time = data ? data.time : '2s';
+            const isMain = data ? (data.isMain || false) : false;
+            const inputsStr = data ? data.inputs.map(i => `${i.id}:${i.count}`).join(', ') : '';
+            const grid = data && data.grid ? data.grid : Array(9).fill(null);
+
+            div.innerHTML = `
+                <div class="remove-path" onclick="this.parentElement.remove()">×</div>
+                <div class="path-title">🚀 制造路径 ${isMain ? '<span style="color:#2ecc71; margin-left:10px;">[顶级]</span>' : ''}</div>
+                <div class="path-form">
+                    <div style="margin-bottom: 10px;">
+                        <label style="display: flex; align-items: center; gap: 5px; cursor: pointer; font-size: 12px; color: #666;">
+                            <input type="radio" name="main-path-radio" class="path-is-main" ${isMain ? 'checked' : ''}> 设置为顶级路径 (Wiki 优先展示且作为制造链路默认路径)
+                        </label>
+                    </div>
+                    <div class="form-grid">
+                        <div class="form-group"><label>生产机器名称</label><input type="text" class="path-machine" value="${machine}" placeholder="如: 压力机"></div>
+                        <div class="form-group"><label>耗时</label><input type="text" class="path-time" value="${time}" placeholder="如: 2s"></div>
+                        <div class="form-group"><label>配方类型 (选填)</label><input type="text" class="path-recipe-type" value="${recipeType}" placeholder="如: COMPRESSING"></div>
+                        <div class="form-group"><label>机器图标链接 (选填)</label><input type="text" class="path-machine-icon" value="${machineIcon}" placeholder="URL"></div>
+                        <div class="form-group" style="grid-column: span 2;">
+                            <label>原材料清单 (保存时自动根据九宫格生成)</label>
+                            <input type="text" class="path-inputs" value="${inputsStr}" placeholder="手动修改或点格子自动同步">
+                        </div>
+                    </div>
+                </div>
+                <div class="path-grid-container">
+                    <div class="path-grid">
+                        ${grid.map((slot, i) => `
+                            <div class="path-slot" data-index="${i}" onclick="selectPathSlot(this)">
+                                ${slot ? `<span>${slot}</span>` : ''}
+                                ${slot && wikiData.itemDetails[slot] ? `<img src="${wikiData.itemDetails[slot].image}">` : ''}
+                            </div>
+                        `).join('')}
+                    </div>
+                    <div class="form-group" style="width: 100%;">
+                        <input type="text" class="path-slot-input" placeholder="选中格子填 ID" style="font-size: 11px; padding: 5px;" oninput="updatePathSlot(this)">
+                    </div>
+                </div>
+            `;
+            container.appendChild(div);
+        }
+
+        function selectPathSlot(el) {
+            const container = el.closest('.path-grid-container');
+            container.querySelectorAll('.path-slot').forEach(s => s.classList.remove('active'));
+            el.classList.add('active');
+            const input = container.querySelector('.path-slot-input');
+            const span = el.querySelector('span');
+            input.value = span ? span.innerText : '';
+            input.focus();
+        }
+
+        function updatePathSlot(inputEl) {
+            const gridContainer = inputEl.closest('.path-grid-container');
+            const activeSlot = gridContainer.querySelector('.path-slot.active');
+            if (!activeSlot) return;
+
+            const val = inputEl.value.trim();
+            activeSlot.innerHTML = val ? `<span>${val}</span>` : '';
+            if (val && wikiData.itemDetails[val]) {
+                activeSlot.innerHTML += `<img src="${wikiData.itemDetails[val].image}">`;
+            }
+
+            // 实时更新该路径的原材料清单
+            const pathItem = inputEl.closest('.recipe-path-item');
+            const allSlots = pathItem.querySelectorAll('.path-slot');
+            const counts = {};
+            allSlots.forEach(slot => {
+                const id = slot.querySelector('span')?.innerText;
+                if (id) counts[id] = (counts[id] || 0) + 1;
+            });
+            pathItem.querySelector('.path-inputs').value = Object.keys(counts).map(id => `${id}:${counts[id]}`).join(', ');
+        }
+
+        function getManufacturingPaths() {
+            const items = document.querySelectorAll('.recipe-path-item');
+            return Array.from(items).map(item => {
+                const machine = item.querySelector('.path-machine').value.trim();
+                const time = item.querySelector('.path-time').value.trim();
+                const recipeType = item.querySelector('.path-recipe-type').value.trim();
+                const machineIcon = item.querySelector('.path-machine-icon').value.trim();
+                const isMain = item.querySelector('.path-is-main').checked;
+                const inputsStr = item.querySelector('.path-inputs').value.trim();
+                
+                // 解析九宫格
+                const grid = Array.from(item.querySelectorAll('.path-slot')).map(slot => {
+                    return slot.querySelector('span')?.innerText || null;
+                });
+
+                // 解析原材料清单
+                const inputs = inputsStr.split(',').filter(s => s.trim()).map(s => {
+                    const parts = s.split(':').map(x => x.trim());
+                    return { id: parts[0], count: parseInt(parts[1]) || 1 };
+                });
+
+                return { machine, time, recipeType, machineIcon, isMain, inputs, grid };
+            }).filter(p => p.machine);
+        }
+
+        function switchTab(tab) {
+            currentTab = tab;
+            currentEditId = null; // 切换 Tab 时清除选中项
+            
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById(`tab-btn-${tab}`).classList.add('active');
+            
+            // 隐藏所有编辑器主体和空状态
+            document.querySelectorAll('.editor-body').forEach(b => b.classList.remove('active'));
+            document.getElementById('editor-empty').style.display = 'flex';
+            
+            // 更新添加按钮逻辑
+            const addBtn = document.getElementById('add-new-btn');
+            if (tab === 'items') {
+                addBtn.style.display = 'flex';
+                addBtn.onclick = createNewItem;
+                addBtn.innerText = '➕ 添加新物品';
+            } else if (tab === 'atlases') {
+                addBtn.style.display = 'flex';
+                addBtn.onclick = createNewAtlas;
+                addBtn.innerText = '➕ 添加新大类';
+            } else {
+                addBtn.style.display = 'none';
+            }
+            
+            document.getElementById('sidebar-search').value = '';
+            renderSidebar();
+            updateHeaderTitle();
+        }
+
+        function updateHeaderTitle() {
+            const title = document.getElementById('current-edit-title');
+            if (!currentEditId) {
+                title.innerText = '管理工作区';
+                return;
+            }
+            
+            if (currentTab === 'items') title.innerText = `正在编辑物品: ${wikiData.itemDetails[currentEditId]?.name || currentEditId}`;
+            else if (currentTab === 'atlases') title.innerText = `正在编辑大类: ${wikiData.atlases.find(a => a.id === currentEditId)?.name || currentEditId}`;
+            else if (currentTab === 'categories') title.innerText = `正在编辑 ${currentEditId} 的小类列表`;
+        }
+
+        function renderSidebar() {
+            const list = document.getElementById('sidebar-list');
+            const search = document.getElementById('sidebar-search').value.toLowerCase();
+            let html = '';
+
+            if (currentTab === 'items') {
+                const allItems = Object.keys(wikiData.itemDetails).map(id => ({ id, ...wikiData.itemDetails[id] }))
+                    .filter(i => (i.name || '').toLowerCase().includes(search) || i.id.toLowerCase().includes(search));
+                html = allItems.map(i => `
+                    <div class="list-card ${i.id === currentEditId ? 'active' : ''}" onclick="loadItem('${i.id}')">
+                        <img src="${i.image || ''}">
+                        <div class="list-info"><div class="name">${i.name}</div><div class="sub">${i.id}</div></div>
+                    </div>
+                `).join('');
+            } else if (currentTab === 'atlases') {
+                wikiData.atlases.filter(a => (a.name || '').toLowerCase().includes(search) || a.id.toLowerCase().includes(search)).forEach(a => {
+                    html += `
+                        <div class="list-card ${a.id === currentEditId ? 'active' : ''}" onclick="loadAtlas('${a.id}')">
+                            <div class="icon-circle">${(a.icon && a.icon.length > 5) ? '🖼️' : (a.icon || '📁')}</div>
+                            <div class="list-info"><div class="name">${a.name}</div><div class="sub">${a.id}</div></div>
+                        </div>
+                    `;
+                });
+            } else if (currentTab === 'categories') {
+                Object.keys(wikiData.categories).filter(id => id.toLowerCase().includes(search)).forEach(id => {
+                    html += `
+                        <div class="list-card ${id === currentEditId ? 'active' : ''}" onclick="loadCategories('${id}')">
+                            <div class="icon-circle">📁</div>
+                            <div class="list-info"><div class="name">${id} 的小类</div><div class="sub">${wikiData.categories[id].length} 个分类</div></div>
+                        </div>
+                    `;
+                });
+            }
+            list.innerHTML = html || '<div style="text-align:center; padding:20px; color:#ccc; font-size:12px;">暂无匹配项</div>';
+        }
+
+        // 物品加载与保存
+        function loadItem(id) {
+            currentEditId = id;
+            document.getElementById('editor-empty').style.display = 'none';
+            document.querySelectorAll('.editor-body').forEach(b => b.classList.remove('active'));
+            document.getElementById('body-items').classList.add('active');
+            
+            const item = wikiData.itemDetails[id];
+            const fields = ['name', 'technicalId', 'category', 'type', 'mainTag', 'subTag', 'material', 'quantity', 'addon', 'itemGroup', 'image', 'description'];
+            fields.forEach(f => document.getElementById(`ed-${f}`).value = item[f] || '');
+            document.getElementById('ed-id').value = id;
+            
+            // 渲染制造路径列表
+            document.getElementById('manufacturing-paths-container').innerHTML = '';
+            if (item.recipes && item.recipes.length > 0) {
+                item.recipes.forEach((path, index) => {
+                    // 【关键修复】：如果旧路径里没九宫格，但物品顶级有九宫格，则自动迁移到第一条路径
+                    if (!path.grid && index === 0 && item.craftingRecipe) {
+                        path.grid = [...item.craftingRecipe];
+                    }
+                    addManufacturingPath(path);
+                });
+            } else {
+                // 如果完全没路径，尝试从旧的九宫格和机器信息中恢复一条路径
+                const fallbackPath = {
+                    machine: item.machineName || '',
+                    machineIcon: item.machineIcon || '',
+                    recipeType: item.recipeType || '',
+                    time: '2s',
+                    grid: item.craftingRecipe ? [...item.craftingRecipe] : Array(9).fill(null),
+                    inputs: []
+                };
+                addManufacturingPath(fallbackPath);
+            }
+
+            renderSidebar();
+            updateHeaderTitle();
+        }
+
+        function saveItem() {
+            const id = document.getElementById('ed-id').value.trim();
+            if (!id) return alert('请输入物品 ID');
+            
+            const fields = ['name', 'technicalId', 'category', 'type', 'mainTag', 'subTag', 'material', 'quantity', 'addon', 'itemGroup', 'image', 'description'];
+            const item = {};
+            fields.forEach(f => {
+                const val = document.getElementById(`ed-${f}`).value.trim();
+                if (val) item[f] = f === 'quantity' ? parseInt(val) : val;
+            });
+            
+            // 获取所有制造路径
+            item.recipes = getManufacturingPaths();
+            
+            wikiData.itemDetails[id] = item;
+            
+            // 同步简易列表数据 (wikiData.items)
+            if (item.type) {
+                if (!wikiData.items[item.type]) wikiData.items[item.type] = [];
+                const existing = wikiData.items[item.type].find(x => x.id === id);
+                const brief = { id, name: item.name, rarity: item.rarity || 'green', img: item.image };
+                if (existing) Object.assign(existing, brief);
+                else wikiData.items[item.type].push(brief);
+            }
+
+            renderSidebar();
+            updateHeaderTitle();
+            writeToDisk(); // 自动尝试写入磁盘
+            alert('物品已保存' + (fileHandle ? '并同步到 data.js！' : '到内存！'));
+        }
+
+        function deleteItem() {
+            if (!confirm(`确定要删除物品 ${currentEditId} 吗？`)) return;
+            const item = wikiData.itemDetails[currentEditId];
+            if (item && item.type && wikiData.items[item.type]) {
+                wikiData.items[item.type] = wikiData.items[item.type].filter(x => x.id !== currentEditId);
+            }
+            delete wikiData.itemDetails[currentEditId];
+            switchTab('items');
+        }
+
+        // 大类加载与保存
+        function loadAtlas(id) {
+            currentEditId = id;
+            document.getElementById('editor-empty').style.display = 'none';
+            document.querySelectorAll('.editor-body').forEach(b => b.classList.remove('active'));
+            document.getElementById('body-atlases').classList.add('active');
+            
+            const atlas = wikiData.atlases.find(a => a.id === id);
+            document.getElementById('at-id').value = atlas.id;
+            document.getElementById('at-name').value = atlas.name;
+            document.getElementById('at-icon').value = atlas.icon;
+            renderSidebar();
+            updateHeaderTitle();
+        }
+
+        function saveAtlas() {
+            const id = document.getElementById('at-id').value.trim();
+            if (!id) return alert('请输入大类 ID');
+            
+            const idx = wikiData.atlases.findIndex(a => a.id === currentEditId);
+            const newData = { id, name: document.getElementById('at-name').value, icon: document.getElementById('at-icon').value };
+            
+            if (idx > -1) wikiData.atlases[idx] = newData;
+            else wikiData.atlases.push(newData);
+            
+            currentEditId = id;
+            renderSidebar();
+            updateHeaderTitle();
+            writeToDisk(); // 自动尝试写入磁盘
+            alert('大类配置已保存！');
+        }
+
+        function deleteAtlas() {
+            if (!confirm(`确定要删除大类 ${currentEditId} 吗？这不会删除该大类下的物品。`)) return;
+            wikiData.atlases = wikiData.atlases.filter(a => a.id !== currentEditId);
+            switchTab('atlases');
+        }
+
+        // 小类加载与保存
+        function loadCategories(parentId) {
+            currentEditId = parentId;
+            document.getElementById('editor-empty').style.display = 'none';
+            document.querySelectorAll('.editor-body').forEach(b => b.classList.remove('active'));
+            document.getElementById('body-categories').classList.add('active');
+            
+            document.getElementById('cat-parent-id').value = parentId;
+            const container = document.getElementById('category-items-container');
+            const cats = wikiData.categories[parentId] || [];
+            container.innerHTML = cats.map((c, i) => `
+                <div class="category-item-row">
+                    <input type="text" placeholder="小类 ID" value="${c.id}" class="cat-id">
+                    <input type="text" placeholder="显示名称" value="${c.name}" class="cat-name">
+                    <input type="text" placeholder="图标" value="${c.icon || ''}" class="cat-icon">
+                    <button class="btn btn-danger" style="padding:5px; min-width:32px; height:32px;" onclick="this.parentElement.remove()">×</button>
+                </div>
+            `).join('');
+            renderSidebar();
+            updateHeaderTitle();
+        }
+
+        function addCategoryRow() {
+            const container = document.getElementById('category-items-container');
+            const div = document.createElement('div');
+            div.className = 'category-item-row';
+            div.innerHTML = `<input type="text" placeholder="小类 ID" class="cat-id"><input type="text" placeholder="显示名称" class="cat-name"><input type="text" placeholder="图标" class="cat-icon"><button class="btn btn-danger" style="padding:5px; min-width:32px; height:32px;" onclick="this.parentElement.remove()">×</button>`;
+            container.appendChild(div);
+        }
+
+        function saveCategories() {
+            const parentId = document.getElementById('cat-parent-id').value.trim();
+            if (!parentId) return alert('请输入所属大类 ID');
+            
+            const rows = document.querySelectorAll('.category-item-row');
+            const cats = Array.from(rows).map(row => ({
+                id: row.querySelector('.cat-id').value.trim(),
+                name: row.querySelector('.cat-name').value.trim(),
+                icon: row.querySelector('.cat-icon').value.trim()
+            })).filter(c => c.id && c.name);
+            
+            wikiData.categories[parentId] = cats;
+            currentEditId = parentId;
+            renderSidebar();
+            updateHeaderTitle();
+            writeToDisk(); // 自动尝试写入磁盘
+            alert('小类列表已保存！');
+        }
+
+        function deleteCategoryGroup() {
+            if (!confirm(`确定要清空 ${currentEditId} 下的所有小类吗？`)) return;
+            delete wikiData.categories[currentEditId];
+            switchTab('categories');
+        }
+
+        // 九宫格辅助
+        function updateGridUI() {
+            document.querySelectorAll('.grid-slot').forEach((slot, i) => {
+                const id = currentRecipe[i];
+                slot.innerHTML = id ? `<span>${id}</span>` : '';
+                if (id && wikiData.itemDetails[id]) slot.innerHTML += `<img src="${wikiData.itemDetails[id].image}">`;
+                slot.onclick = () => {
+                    document.querySelectorAll('.grid-slot').forEach(s => s.classList.remove('active'));
+                    slot.classList.add('active');
+                    currentSlot = i;
+                    document.getElementById('slot-val-input').value = currentRecipe[i] || '';
+                    document.getElementById('slot-val-input').focus();
+                };
+            });
+        }
+        document.getElementById('slot-val-input').oninput = (e) => {
+            if (currentSlot === null) return;
+            currentRecipe[currentSlot] = e.target.value.trim() || null;
+            updateGridUI();
+        };
+
+        function createNewItem() { 
+            const id = prompt('请输入新物品的唯一 ID (英文/数字):'); 
+            if(id) { 
+                if(wikiData.itemDetails[id]) return alert('该 ID 已存在！');
+                wikiData.itemDetails[id] = {name:'未命名物品', image:'', description:'暂无描述'}; 
+                loadItem(id); 
+            } 
+        }
+        function createNewAtlas() { 
+            const id = prompt('请输入新大类的唯一 ID (英文/数字):'); 
+            if(id) { 
+                if(wikiData.atlases.find(a => a.id === id)) return alert('该 ID 已存在！');
+                wikiData.atlases.push({id, name:'新大类', icon:'📁'}); 
+                loadAtlas(id); 
+            } 
+        }
+
+        function showExportModal() {
+            const code = `// 粘液科技百科 数据文件\n// 最后更新: ${new Date().toLocaleString()}\n\nconst wikiData = ${JSON.stringify(wikiData, null, 4)};`;
+            document.getElementById('full-code-view').innerText = code;
+            document.getElementById('export-modal').style.display = 'flex';
+        }
+        function downloadData() {
+            const code = document.getElementById('full-code-view').innerText;
+            const blob = new Blob([code], { type: 'text/javascript' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'data.js';
+            a.click();
+            URL.revokeObjectURL(url);
+            alert('文件已开始下载，请将其保存到项目目录并覆盖旧的 data.js');
+        }
+        function closeExportModal() { document.getElementById('export-modal').style.display = 'none'; }
+        function copyFullCode() { 
+            navigator.clipboard.writeText(document.getElementById('full-code-view').innerText).then(() => {
+                const btn = document.querySelector('.modal-header .btn-accent');
+                btn.innerText = '✅ 已复制';
+                setTimeout(() => btn.innerText = '复制全部代码', 2000);
+            }); 
+        }
+
+        document.getElementById('sidebar-search').oninput = renderSidebar;
+
+        // 初始化
+        function init() {
+            const params = new URLSearchParams(window.location.search);
+            const targetId = params.get('id');
+            const targetTab = params.get('tab') || 'items';
+            
+            switchTab(targetTab);
+            if (targetId) {
+                if (targetTab === 'items') loadItem(targetId);
+                else if (targetTab === 'atlases') loadAtlas(targetId);
+                else if (targetTab === 'categories') loadCategories(targetId);
+            }
+        }
+
+        init();
+    </script>
+</body>
+</html>
