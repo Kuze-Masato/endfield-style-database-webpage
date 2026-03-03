@@ -21,9 +21,8 @@
 1.  克隆或下载项目到本地
     ```bash
     # 克隆仓库（若使用GitHub/GitLab）
-    git clone https://github.com/jiushizhengren/endfield-encyclopedia.git
+    git clone (https://github.com/Kuze-Masato/endfield-style-database-webpage.git)
     
-    # 若未使用版本控制，直接下载项目压缩包，解压后进入项目根目录即可
     ```
 2.  打开网页
     - 打开项目根目录，找到 `index.html` 文件
